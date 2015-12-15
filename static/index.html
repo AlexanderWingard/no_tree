@@ -63,7 +63,7 @@ var rainbowScale = d3.scale.cubehelix()
         d3.hsl( 260, 0.75, 0.35)
     ])
 
-var selectedColor = d3.rgb(0.0,0.0,0.0,1.0)
+var selectedColor = d3.hsl(-100, 0.75, 0.35)
 
 var voro = d3.geom.voronoi()
     .x(function(d) { return x(d.x)})
