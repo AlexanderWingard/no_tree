@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html manifest="lights.appcache">
+<head>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="viewport" content="width=660,user-scalable=no"/>
+<link rel="apple-touch-icon-precomposed" href="/lightup.png"/>
+<title>Light Up L3</title>
+<script src="d3.v3.min.js" charset="utf-8"></script>
+<style>
+body {
+  font: 10px sans-serif;
+  margin: 0;
+  overflow: hidden;
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+</style>
+</head>
+<body>
+</body>
+<script>
+var clickType = "click";
+if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+    clickType = "touchstart";
+}
+document.ontouchmove = function(e) {e.preventDefault()};
+var lights = [
+    {pin: 2, state: 0, color: "#E6233E", x: 0, y: 70},
+    {pin: 3, state: 0, color: "#66A60B", x: -90, y: -20},
+    {pin: 9, state: 0, color: "#66A60B", x: 90, y: -20},
+    {pin: 8, state: 0, color: "#E6233E", x: 40, y: -50},
+    {pin: 4, state: 0, color: "#E6233E", x: -40, y: -50},
+    {pin: 6, state: 0, color: "#8C85D2", x: 50, y:30},
+    {pin: 7, state: 0, color: "#8C85D2", x: 0, y:10},
+    {pin: 5, state: 0, color: "#8C85D2", x: -50, y:30}
+];
+var buttons = [
+    {state: 1, color: "#66A60B"},
+    {state: 0, color: "#E6233E"}
+];
+var totHeight = window.innerHeight;
+var totWidth = window.innerWidth;
+var margin = {top: 10, right: 10, bottom: 100, left: 200},
+    margin2 = {top: 560, right: 10, bottom: 20, left: 200},
+    width = totWidth - margin.left - margin.right,
+    height = totHeight - margin.top - margin.bottom,
+    height2 = totHeight - margin2.top - margin2.bottom;
+var svg = d3.select("body")
+    .append("svg")
+    .attr("preserveAspectRatio", "none")
+    .attr("viewBox", "0 0 " + totWidth + " " + totHeight)
+    .attr("width", totWidth)
+    .attr("height", totHeight);
+
+window.onresize = function() {
+    svg
+        .attr("width", window.innerWidth)
+        .attr("height", window.innerHeight);
+}
+
+var voro = d3.geom.voronoi()
+    .x(function(d) { return x(d.x)})
+    .y(function(d) { return y(d.y)})
+
+var x = d3.scale.linear()
+    .domain([-100, 100])
+    .range([0, totWidth]);
+
+var y = d3.scale.linear()
+    .domain([100, -100])
+    .range([0, totHeight]);
+var dragstate = null;
+function touchStart(d,i) {
+    dragstate = lights[i].state;
+    clicked(i);
+}
+function touchMove(d) {
+    var p = d3.touches(svg.node())[0];
+    var elem = document.elementFromPoint(p[0], p[1]);
+    var idx = elem.getAttribute("idx");
+    if(lights[idx].state == dragstate) {
+            clicked(idx);
+    }
+}
+
+svg.selectAll("path")
+    .data(voro(lights))
+    .enter()
+    .append("path")
+    .attr("d", function(d) { return "M" + d.join("L") + "Z"; })
+    .attr("idx", function(d, i) {return i})
+    .attr("fill", "white")
+    .on(clickType, touchStart)
+    .on("touchmove",  touchMove);
+
+svg.selectAll("circle")
+    .data(lights)
+    .enter()
+    .append("circle")
+    .attr("r", 20)
+    .attr("cx", function(d) { return x(d.x) })
+    .attr("cy", function(d) { return y(d.y)})
+    .on(clickType, touchStart)
+    .on("touchmove",  touchMove);
+
+svg.selectAll("rect")
+    .data(buttons)
+    .enter()
+    .append("rect")
+    .text("apa")
+    .attr("fill", function(d) { return d.color })
+    .attr("x", function(d, i) { return x(-100 + 200 / buttons.length * i)})
+    .attr("y", y(-70))
+    .attr("width", function(d) { return x(0) })
+    .attr("height", y(30))
+    .on("click", function(d,i) {
+        for(var j = 0; j < lights.length; j++) {
+            lights[j].state = i;
+            clicked(j);
+        }
+    });
+
+
+redraw();
+
+function redraw() {
+    svg.selectAll("circle")
+        .attr("fill", function(d) { return d.color });
+    svg.selectAll("path")
+        .attr("fill", function(d, i) {return lights[i].state ?  lights[i].color : "white"})
+        .attr("opacity", 0.2);
+}
+
+function clicked(i) {
+    lights[i].state ^= 1;
+    var bits = 0;
+    for(var j = 0; j < lights.length; j++) {
+        bits = bits | (lights[j].state << lights[j].pin);
+    }
+    // httpGet("/lights/" + bits);
+    // console.log(bits);
+    redraw();
+    setTimeout(function() {
+        httpGet("/digital/" + lights[i].pin +"/" + lights[i].state);
+    }, 0);
+}
+
+function httpGet(theUrl)
+{
+    var xmlHttp = null;
+    xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", theUrl, true );
+    xmlHttp.send( null );
+    // return xmlHttp.responseText;
+}
+</script>
+</html>
