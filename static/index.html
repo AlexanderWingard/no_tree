@@ -28,14 +28,14 @@ if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(naviga
 }
 document.ontouchmove = function(e) {e.preventDefault()};
 var lights = [
-    {pin: 2, state: 0, color: "#E6233E", x: 0, y: 70},
-    {pin: 3, state: 0, color: "#66A60B", x: -90, y: -20},
-    {pin: 9, state: 0, color: "#66A60B", x: 90, y: -20},
-    {pin: 8, state: 0, color: "#E6233E", x: 40, y: -50},
-    {pin: 4, state: 0, color: "#E6233E", x: -40, y: -50},
-    {pin: 6, state: 0, color: "#8C85D2", x: 50, y:30},
-    {pin: 7, state: 0, color: "#8C85D2", x: 0, y:10},
-    {pin: 5, state: 0, color: "#8C85D2", x: -50, y:30}
+    {pin: 2, state: 1, color: "#E6233E", x: 0, y: 70},
+    {pin: 3, state: 1, color: "#66A60B", x: -90, y: -20},
+    {pin: 9, state: 1, color: "#66A60B", x: 90, y: -20},
+    {pin: 8, state: 1, color: "#E6233E", x: 40, y: -50},
+    {pin: 4, state: 1, color: "#E6233E", x: -40, y: -50},
+    {pin: 6, state: 1, color: "#8C85D2", x: 50, y:30},
+    {pin: 7, state: 1, color: "#8C85D2", x: 0, y:10},
+    {pin: 5, state: 1, color: "#8C85D2", x: -50, y:30}
 ];
 
 var svg = d3.select("body")
@@ -43,15 +43,17 @@ var svg = d3.select("body")
 
 var canvas = d3.select("body")
     .append("canvas")
-    .attr("id", "rainbow")
+    .on(clickType, pickColor)
+    .on("touchmove", pickColorMove)
 
 var rainbowScale = d3.scale.cubehelix()
-    .domain([0, 0.5 ,1])
     .range([
         d3.hsl(-100, 0.75, 0.35),
         d3.hsl(  80, 1.50, 0.80),
         d3.hsl( 260, 0.75, 0.35)
     ])
+
+var selectedColor = d3.rgb(0.0,0.0,0.0,1.0)
 
 var voro = d3.geom.voronoi()
     .x(function(d) { return x(d.x)})
@@ -77,12 +79,20 @@ function touchMove(d) {
     }
 }
 
+function pickColor(e) {
+    selectedColor = rainbowScale(d3.event.x)
+    resize()
+}
+
+function pickColorMove(d) {
+    var p = d3.touches(canvas.node())[0];
+    console.log(p)
+    selectedColor = rainbowScale(p[0])
+    resize()
+}
+
 function clicked(i) {
-    lights[i].state ^= 1;
-    var bits = 0;
-    for(var j = 0; j < lights.length; j++) {
-        bits = bits | (lights[j].state << lights[j].pin);
-    }
+    lights[i].color = selectedColor
     resize()
 }
 
@@ -93,6 +103,7 @@ var resize = function() {
 
     x.range([0, width]);
     y.range([0, height]);
+    rainbowScale.domain([0, width/2, width])
 
     var paths = svg.selectAll("path")
         .data(voro(lights))
@@ -132,11 +143,11 @@ var resize = function() {
         .attr("width", width)
         .attr("height", rainbowHeight)
 
-    var context = document.getElementById("rainbow").getContext("2d")
+    var context = canvas.node().getContext("2d")
     image = context.createImageData(width, 1);
     var j = 0;
     for (var i = 0; i < width; i++) {
-        var h = d3.hcl(rainbowScale(i/width))
+        var h = d3.hcl(rainbowScale(i))
         var c = d3.rgb(h);
         image.data[j++] = c.r;
         image.data[j++] = c.g;
@@ -144,9 +155,11 @@ var resize = function() {
         image.data[j++] = 255;
     }
 
-    for(var k = 0; k < rainbowHeight; k++) {
+    for(var k = 20; k < rainbowHeight; k++) {
         context.putImageData(image, 0, k);
     }
+    context.fillStyle = selectedColor.toString()
+    context.fillRect(0, 0, width, 20)
 }
 
 window.addEventListener("resize", resize)
