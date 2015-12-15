@@ -7,6 +7,9 @@
 <link rel="apple-touch-icon-precomposed" href="/lightup.png"/>
 <title>Light Up L3</title>
 <script src="d3.v3.min.js" charset="utf-8"></script>
+<script>
+!function(){function t(t){return function(e,i){e=d3.hsl(e),i=d3.hsl(i);var r=(e.h+120)*a,h=(i.h+120)*a-r,s=e.s,l=i.s-s,o=e.l,u=i.l-o;return isNaN(l)&&(l=0,s=isNaN(s)?i.s:s),isNaN(h)&&(h=0,r=isNaN(r)?i.h:r),function(a){var e=r+h*a,i=Math.pow(o+u*a,t),c=(s+l*a)*i*(1-i);return"#"+n(i+c*(-.14861*Math.cos(e)+1.78277*Math.sin(e)))+n(i+c*(-.29227*Math.cos(e)-.90649*Math.sin(e)))+n(i+c*1.97294*Math.cos(e))}}}function n(t){var n=(t=0>=t?0:t>=1?255:0|255*t).toString(16);return 16>t?"0"+n:n}var a=Math.PI/180;d3.scale.cubehelix=function(){return d3.scale.linear().range([d3.hsl(300,.5,0),d3.hsl(-240,.5,1)]).interpolate(d3.interpolateCubehelix)},d3.interpolateCubehelix=t(1),d3.interpolateCubehelix.gamma=t}();
+</script>
 <style>
 body {
   font: 10px sans-serif;
@@ -50,12 +53,36 @@ var svg = d3.select("body")
     .attr("preserveAspectRatio", "none")
     .attr("viewBox", "0 0 " + totWidth + " " + totHeight)
     .attr("width", totWidth)
-    .attr("height", totHeight);
+    .attr("height", height);
+
+var rainbowScale = d3.scale.cubehelix()
+    .domain([0, 0.5 ,1])
+    .range([
+        d3.hsl(-100, 0.75, 0.35),
+        d3.hsl(  80, 1.50, 0.80),
+        d3.hsl( 260, 0.75, 0.35)
+    ])
+
+var canvas = d3.select("body")
+    .append("canvas")
+    .attr("width", totWidth)
+    .attr("height2", height)
+    .each(render)
+
 
 window.onresize = function() {
+    totHeight = window.innerHeight;
+    totWidth = window.innerWidth;
+    
     svg
-        .attr("width", window.innerWidth)
-        .attr("height", window.innerHeight);
+        .attr("width", totWidth)
+        .attr("height", totHeight-height2);
+
+    canvas
+        .attr("width", totWidth)
+        .attr("height2", height)
+        .each(render)
+
 }
 
 var voro = d3.geom.voronoi()
@@ -69,6 +96,8 @@ var x = d3.scale.linear()
 var y = d3.scale.linear()
     .domain([100, -100])
     .range([0, totHeight]);
+
+
 var dragstate = null;
 function touchStart(d,i) {
     dragstate = lights[i].state;
@@ -130,6 +159,24 @@ function redraw() {
         .attr("fill", function(d, i) {return lights[i].state ?  lights[i].color : "white"})
         .attr("opacity", 0.2);
 }
+
+function render() {
+    var context = this.getContext("2d")
+    image = context.createImageData(totWidth, 1);
+    var j = 0;
+    for (var i = 0; i < totWidth; i++) {
+        var h = d3.hcl(rainbowScale(i/totWidth))
+        var c = d3.rgb(h);
+        image.data[j++] = c.r;
+        image.data[j++] = c.g;
+        image.data[j++] = c.b;
+        image.data[j++] = 255;
+    }
+
+    for(var k = 0; k < 200; k++) {
+        context.putImageData(image, 0, k);
+    }
+  };
 
 function clicked(i) {
     lights[i].state ^= 1;
