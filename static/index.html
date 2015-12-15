@@ -37,23 +37,13 @@ var lights = [
     {pin: 7, state: 0, color: "#8C85D2", x: 0, y:10},
     {pin: 5, state: 0, color: "#8C85D2", x: -50, y:30}
 ];
-var buttons = [
-    {state: 1, color: "#66A60B"},
-    {state: 0, color: "#E6233E"}
-];
-var totHeight = window.innerHeight;
-var totWidth = window.innerWidth;
-var margin = {top: 10, right: 10, bottom: 100, left: 200},
-    margin2 = {top: 560, right: 10, bottom: 20, left: 200},
-    width = totWidth - margin.left - margin.right,
-    height = totHeight - margin.top - margin.bottom,
-    height2 = totHeight - margin2.top - margin2.bottom;
+
 var svg = d3.select("body")
     .append("svg")
-    .attr("preserveAspectRatio", "none")
-    .attr("viewBox", "0 0 " + totWidth + " " + totHeight)
-    .attr("width", totWidth)
-    .attr("height", height);
+
+var canvas = d3.select("body")
+    .append("canvas")
+    .attr("id", "rainbow")
 
 var rainbowScale = d3.scale.cubehelix()
     .domain([0, 0.5 ,1])
@@ -63,40 +53,15 @@ var rainbowScale = d3.scale.cubehelix()
         d3.hsl( 260, 0.75, 0.35)
     ])
 
-var canvas = d3.select("body")
-    .append("canvas")
-    .attr("width", totWidth)
-    .attr("height2", height)
-    .each(render)
-
-
-window.onresize = function() {
-    totHeight = window.innerHeight;
-    totWidth = window.innerWidth;
-    
-    svg
-        .attr("width", totWidth)
-        .attr("height", totHeight-height2);
-
-    canvas
-        .attr("width", totWidth)
-        .attr("height2", height)
-        .each(render)
-
-}
-
 var voro = d3.geom.voronoi()
     .x(function(d) { return x(d.x)})
     .y(function(d) { return y(d.y)})
 
 var x = d3.scale.linear()
     .domain([-100, 100])
-    .range([0, totWidth]);
 
 var y = d3.scale.linear()
     .domain([100, -100])
-    .range([0, totHeight]);
-
 
 var dragstate = null;
 function touchStart(d,i) {
@@ -112,60 +77,66 @@ function touchMove(d) {
     }
 }
 
-svg.selectAll("path")
-    .data(voro(lights))
-    .enter()
-    .append("path")
-    .attr("d", function(d) { return "M" + d.join("L") + "Z"; })
-    .attr("idx", function(d, i) {return i})
-    .attr("fill", "white")
-    .on(clickType, touchStart)
-    .on("touchmove",  touchMove);
-
-svg.selectAll("circle")
-    .data(lights)
-    .enter()
-    .append("circle")
-    .attr("r", 20)
-    .attr("cx", function(d) { return x(d.x) })
-    .attr("cy", function(d) { return y(d.y)})
-    .on(clickType, touchStart)
-    .on("touchmove",  touchMove);
-
-svg.selectAll("rect")
-    .data(buttons)
-    .enter()
-    .append("rect")
-    .text("apa")
-    .attr("fill", function(d) { return d.color })
-    .attr("x", function(d, i) { return x(-100 + 200 / buttons.length * i)})
-    .attr("y", y(-70))
-    .attr("width", function(d) { return x(0) })
-    .attr("height", y(30))
-    .on("click", function(d,i) {
-        for(var j = 0; j < lights.length; j++) {
-            lights[j].state = i;
-            clicked(j);
-        }
-    });
-
-
-redraw();
-
-function redraw() {
-    svg.selectAll("circle")
-        .attr("fill", function(d) { return d.color });
-    svg.selectAll("path")
-        .attr("fill", function(d, i) {return lights[i].state ?  lights[i].color : "white"})
-        .attr("opacity", 0.2);
+function clicked(i) {
+    lights[i].state ^= 1;
+    var bits = 0;
+    for(var j = 0; j < lights.length; j++) {
+        bits = bits | (lights[j].state << lights[j].pin);
+    }
+    resize()
 }
 
-function render() {
-    var context = this.getContext("2d")
-    image = context.createImageData(totWidth, 1);
+var resize = function() {
+    rainbowHeight = 100
+    height = window.innerHeight - rainbowHeight;
+    width = window.innerWidth;
+
+    x.range([0, width]);
+    y.range([0, height]);
+
+    var paths = svg.selectAll("path")
+        .data(voro(lights))
+
+    var paths_enter = paths
+        .enter()
+        .append("path")
+        .attr("opacity", 0.2)
+        .on(clickType, touchStart)
+        .on("touchmove",  touchMove)
+
+    var paths_update = paths
+        .attr("d", function(d) { return "M" + d.join("L") + "Z"; })
+        .attr("fill", function(d, i) {return lights[i].state ?  lights[i].color : "white"})
+        .attr("idx", function(d, i) {return i})
+
+
+    var circles = svg.selectAll("circle")
+        .data(lights)
+
+    var circles_enter = circles
+        .enter()
+        .append("circle")
+        .attr("r", 20)
+        .on(clickType, touchStart)
+        .on("touchmove",  touchMove);
+    var circles_update = circles
+        .attr("cx", function(d) { return x(d.x) })
+        .attr("cy", function(d) { return y(d.y)})
+        .attr("fill", function(d) { return d.color });
+
+    svg
+        .attr("width", width)
+        .attr("height", height);
+
+    canvas
+        .attr("width", width)
+        .attr("height", rainbowHeight)
+
+    var context = document.getElementById("rainbow").getContext("2d")
+    image = context.createImageData(width, 1);
     var j = 0;
-    for (var i = 0; i < totWidth; i++) {
-        var h = d3.hcl(rainbowScale(i/totWidth))
+    for (var i = 0; i < width; i++) {
+        var h = d3.hcl(rainbowScale(i/width))
         var c = d3.rgb(h);
         image.data[j++] = c.r;
         image.data[j++] = c.g;
@@ -173,32 +144,12 @@ function render() {
         image.data[j++] = 255;
     }
 
-    for(var k = 0; k < 200; k++) {
+    for(var k = 0; k < rainbowHeight; k++) {
         context.putImageData(image, 0, k);
     }
-  };
-
-function clicked(i) {
-    lights[i].state ^= 1;
-    var bits = 0;
-    for(var j = 0; j < lights.length; j++) {
-        bits = bits | (lights[j].state << lights[j].pin);
-    }
-    // httpGet("/lights/" + bits);
-    // console.log(bits);
-    redraw();
-    setTimeout(function() {
-        httpGet("/digital/" + lights[i].pin +"/" + lights[i].state);
-    }, 0);
 }
 
-function httpGet(theUrl)
-{
-    var xmlHttp = null;
-    xmlHttp = new XMLHttpRequest();
-    xmlHttp.open( "GET", theUrl, true );
-    xmlHttp.send( null );
-    // return xmlHttp.responseText;
-}
+window.addEventListener("resize", resize)
+resize()
 </script>
 </html>
