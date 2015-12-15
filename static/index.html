@@ -90,7 +90,8 @@ function touchMove(d) {
 }
 
 function pickColor(d) {
-    selectedColor = rainbowScale(d3.event.x)
+    var e = d3.mouse(canvas.node())[0] || d3.touch(canvas.node())[0]
+    selectedColor = rainbowScale(e)
     resize()
 }
 
