@@ -102,7 +102,7 @@ function pickColorMove(d) {
 }
 
 function clicked(i) {
-    lights[i].color = selectedColor
+    lights[i].color = selectedColor.toString()
     socket.emit("update", lights[i])
     resize()
 
