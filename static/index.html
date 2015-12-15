@@ -7,6 +7,7 @@
 <link rel="apple-touch-icon-precomposed" href="/lightup.png"/>
 <title>Light Up L3</title>
 <script src="d3.v3.min.js" charset="utf-8"></script>
+<script src="socket.io/socket.io.js"></script>
 <script>
 !function(){function t(t){return function(e,i){e=d3.hsl(e),i=d3.hsl(i);var r=(e.h+120)*a,h=(i.h+120)*a-r,s=e.s,l=i.s-s,o=e.l,u=i.l-o;return isNaN(l)&&(l=0,s=isNaN(s)?i.s:s),isNaN(h)&&(h=0,r=isNaN(r)?i.h:r),function(a){var e=r+h*a,i=Math.pow(o+u*a,t),c=(s+l*a)*i*(1-i);return"#"+n(i+c*(-.14861*Math.cos(e)+1.78277*Math.sin(e)))+n(i+c*(-.29227*Math.cos(e)-.90649*Math.sin(e)))+n(i+c*1.97294*Math.cos(e))}}}function n(t){var n=(t=0>=t?0:t>=1?255:0|255*t).toString(16);return 16>t?"0"+n:n}var a=Math.PI/180;d3.scale.cubehelix=function(){return d3.scale.linear().range([d3.hsl(300,.5,0),d3.hsl(-240,.5,1)]).interpolate(d3.interpolateCubehelix)},d3.interpolateCubehelix=t(1),d3.interpolateCubehelix.gamma=t}();
 </script>
@@ -22,21 +23,30 @@ body {
 <body>
 </body>
 <script>
+var socket = io();
+
+socket.on('world', function(d) {
+    lights = d
+    resize()
+})
+
+
+socket.on('update', function(d) {
+    for(var i = 0; i < lights.length; i++) {
+        if (lights[i].pin == d.pin) {
+            lights[i].color = d.color
+            resize()
+            return;
+        }
+    }
+})
+
 var clickType = "click";
 if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
     clickType = "touchstart";
 }
 document.ontouchmove = function(e) {e.preventDefault()};
-var lights = [
-    {pin: 2, state: 1, color: "#E6233E", x: 0, y: 70},
-    {pin: 3, state: 1, color: "#66A60B", x: -90, y: -20},
-    {pin: 9, state: 1, color: "#66A60B", x: 90, y: -20},
-    {pin: 8, state: 1, color: "#E6233E", x: 40, y: -50},
-    {pin: 4, state: 1, color: "#E6233E", x: -40, y: -50},
-    {pin: 6, state: 1, color: "#8C85D2", x: 50, y:30},
-    {pin: 7, state: 1, color: "#8C85D2", x: 0, y:10},
-    {pin: 5, state: 1, color: "#8C85D2", x: -50, y:30}
-];
+var lights = [];
 
 var svg = d3.select("body")
     .append("svg")
@@ -79,21 +89,22 @@ function touchMove(d) {
     }
 }
 
-function pickColor(e) {
+function pickColor(d) {
     selectedColor = rainbowScale(d3.event.x)
     resize()
 }
 
 function pickColorMove(d) {
     var p = d3.touches(canvas.node())[0];
-    console.log(p)
     selectedColor = rainbowScale(p[0])
     resize()
 }
 
 function clicked(i) {
     lights[i].color = selectedColor
+    socket.emit("update", lights[i])
     resize()
+
 }
 
 var resize = function() {
